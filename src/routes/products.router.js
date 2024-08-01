@@ -1,5 +1,6 @@
 import { Router } from "express";
 import productModel from '../models/product.model.js';
+import cartModel from '../models/cart.model.js';
 
 const router = Router();
 
@@ -72,8 +73,11 @@ const configureRouter = (io) => {
         try {
             const removedProduct = await productModel.findByIdAndDelete(req.params.pid);
             if (removedProduct) {
-                res.status(200).json({ msg: `Id product: ${req.params.pid} successfuly erased` });
+                // Eliminar el producto de todos los carritos
+                await cartModel.updateMany({}, { $pull: { products: { product: req.params.pid } } });
                 io.emit('productRemoved', { id: req.params.pid }); // Emitir el evento a todos los clientes
+                io.emit('cartUpdated'); // Emitir evento para actualizar los carritos
+                res.status(200).json({ msg: `Id product: ${req.params.pid} successfully erased` });
             } else {
                 res.status(404).json({ msg: 'Product not found' });
             }

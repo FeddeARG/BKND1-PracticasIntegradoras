@@ -5,7 +5,6 @@ document.getElementById('productForm').addEventListener('submit', function (even
     const formData = new FormData(event.target);
     const data = Object.fromEntries(formData.entries());
 
-    // Enviar los datos del formulario al servidor
     fetch('/api/products', {
         method: 'POST',
         headers: {
@@ -16,36 +15,77 @@ document.getElementById('productForm').addEventListener('submit', function (even
     .then(response => response.json())
     .then(product => {
         console.log('Product added:', product);
-        // Agregar el producto a la lista de productos
-        addProductToList(product);
+        // Aquí removemos la llamada redundante
+        // addProductToList(product);
     })
     .catch(err => console.error('Error adding product:', err));
 
-    // Limpiar el formulario después de enviarlo
     event.target.reset();
 });
 
 function addProductToList(product) {
     const productList = document.getElementById('products');
-    const productItem = document.createElement('li');
-    productItem.className = 'list-group-item';
+    const productItem = document.createElement('div');
+    productItem.className = 'col-md-4';
     productItem.id = `product-${product._id}`;
     productItem.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <strong>ID:</strong> ${product._id} <br>
-                <strong>Title:</strong> ${product.title} <br>
-                <strong>Description:</strong> ${product.description} <br>
-                <strong>Code:</strong> ${product.code} <br>
-                <strong>Price:</strong> $${product.price} <br>
-                <strong>Stock:</strong> ${product.stock}
-            </div>
-            <div>
-                <button class="btn btn-primary" onclick="viewDetails('${product._id}')">Ver Detalles</button>
-                <button class="btn btn-danger" onclick="removeProduct('${product._id}')">Eliminar</button>
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">${product.title}</h5>
+                <p class="card-text">${product.description}</p>
+                <p class="card-text"><strong>Code:</strong> ${product.code}</p>
+                <p class="card-text"><strong>Price:</strong> $${product.price}</p>
+                <p class="card-text"><strong>Stock:</strong> ${product.stock}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <button class="btn btn-sm btn-primary" onclick="viewDetails('${product._id}')">Ver Detalles</button>
+                        <button class="btn btn-sm btn-danger" onclick="removeProduct('${product._id}')">Eliminar</button>
+                        <button class="btn btn-sm btn-success" onclick="addToCart('${product._id}')">Add to Cart</button>
+                    </div>
+                </div>
             </div>
         </div>`;
     productList.appendChild(productItem);
+}
+
+function addToCart(productId) {
+    fetch(`/api/carts/add/${productId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(cart => {
+        console.log('Product added to cart:', cart);
+        updateCartList(cart);
+    })
+    .catch(err => console.error('Error adding product to cart:', err));
+}
+
+function updateCartList(cart) {
+    const cartList = document.getElementById('cart-items');
+    const emptyCartMessage = document.getElementById('empty-cart');
+    cartList.innerHTML = ''; // Limpiar lista de carritos
+
+    if (!cart || !cart.products || cart.products.length === 0) {
+        emptyCartMessage.style.display = 'block';
+    } else {
+        emptyCartMessage.style.display = 'none';
+        cart.products.forEach(item => {
+            const cartItem = document.createElement('li');
+            cartItem.className = 'list-group-item';
+            cartItem.id = `cart-${item.product._id}`;
+            cartItem.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>Title:</strong> ${item.product.title} <br>
+                        <strong>Quantity:</strong> ${item.quantity}
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-danger" onclick="removeFromCart('${item.product._id}')">Remove</button>
+                    </div>
+                </div>`;
+            cartList.appendChild(cartItem);
+        });
+    }
 }
 
 function viewDetails(productId) {
@@ -53,12 +93,47 @@ function viewDetails(productId) {
 }
 
 function removeProduct(id) {
-    // Emitir el evento de eliminación a través del socket
-    socket.emit('removeProduct', { id });
+    fetch(`/api/products/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(result => {
+        console.log('Product removed:', result);
+        const productItem = document.getElementById(`product-${id}`);
+        if (productItem) {
+            productItem.remove();
+        }
+        // Emitir evento para actualizar carritos
+        socket.emit('cartUpdated');
+    })
+    .catch(err => console.error('Error removing product:', err));
+}
+
+function removeFromCart(productId) {
+    fetch(`/api/carts/remove/${productId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(cart => {
+        console.log('Product removed from cart:', cart);
+        updateCartList(cart);
+    })
+    .catch(err => console.error('Error removing product from cart:', err));
+}
+
+function clearCart() {
+    fetch('/api/carts/clear', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(cart => {
+        console.log('Cart cleared:', cart);
+        updateCartList(cart);
+    })
+    .catch(err => console.error('Error clearing cart:', err));
 }
 
 socket.on('productRemoved', (data) => {
-    // Eliminar el producto del DOM si se ha eliminado del servidor
     const productItem = document.getElementById(`product-${data.id}`);
     if (productItem) {
         productItem.remove();
@@ -66,11 +141,18 @@ socket.on('productRemoved', (data) => {
 });
 
 socket.on('productData', (data) => {
-    // Añadir el producto al DOM cuando se recibe desde el servidor
     addProductToList(data);
 });
 
-// Cargar productos existentes cuando se carga la página
+socket.on('cartUpdated', () => {
+    fetch('/api/carts')
+        .then(response => response.json())
+        .then(cart => {
+            updateCartList(cart);
+        })
+        .catch(err => console.error('Error fetching cart:', err));
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     fetch('/api/products')
         .then(response => response.json())
@@ -78,4 +160,15 @@ document.addEventListener('DOMContentLoaded', () => {
             products.forEach(product => addProductToList(product));
         })
         .catch(err => console.error('Error fetching products:', err));
+
+    fetch('/api/carts')
+        .then(response => response.json())
+        .then(cart => {
+            if (cart) {
+                updateCartList(cart);
+            } else {
+                updateCartList({ products: [] });
+            }
+        })
+        .catch(err => console.error('Error fetching cart:', err));
 });

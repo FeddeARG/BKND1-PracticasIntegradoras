@@ -1,63 +1,90 @@
-import { Router } from 'express';
+import { Router } from "express";
 import cartModel from '../models/cart.model.js';
+import productModel from '../models/product.model.js';
 
 const router = Router();
 
-router.post('/', async (req, res) => {
-    const newCart = new cartModel({ products: [] });
-    try {
-        const savedCart = await newCart.save();
-        res.status(201).json(savedCart);
-    } catch (err) {
-        res.status(500).json({ msg: err.message });
-    }
-});
-
-router.post('/:cid/product/:pid', async (req, res) => {
-    const { cid, pid } = req.params;
-    const { quantity } = req.body;
+// Ruta para agregar un producto al carrito
+router.post('/add/:pid', async (req, res) => {
+    const productId = req.params.pid;
 
     try {
-        const cart = await cartModel.findById(cid);
-        if (!cart) {
-            return res.status(404).json({ msg: 'Cart not found' });
+        const product = await productModel.findById(productId);
+        if (!product) {
+            return res.status(404).json({ msg: 'Product not found' });
         }
 
-        const productIndex = cart.products.findIndex(p => p.product.toString() === pid);
-        if (productIndex > -1) {
-            cart.products[productIndex].quantity += quantity;
+        let cart = await cartModel.findOne();
+        if (!cart) {
+            cart = new cartModel({ products: [] });
+        }
+
+        const productInCart = cart.products.find(p => p.product.toString() === productId);
+        if (productInCart) {
+            productInCart.quantity += 1;
         } else {
-            cart.products.push({ product: pid, quantity });
+            cart.products.push({ product: productId, quantity: 1 });
         }
 
         await cart.save();
+        cart = await cartModel.findOne().populate('products.product');
         res.status(200).json(cart);
     } catch (err) {
         res.status(500).json({ msg: err.message });
     }
 });
 
-router.get('/:cid', async (req, res) => {
+// Ruta para obtener el carrito
+router.get('/', async (req, res) => {
     try {
-        const cart = await cartModel.findById(req.params.cid).populate('products.product');
+        const cart = await cartModel.findOne().populate('products.product');
+        if (!cart) {
+            return res.status(200).json({ products: [] });
+        }
+        res.json(cart.toObject());
+    } catch (err) {
+        res.status(500).json({ msg: err.message });
+    }
+});
+
+// Ruta para eliminar un producto del carrito
+router.post('/remove/:pid', async (req, res) => {
+    const productId = req.params.pid;
+
+    try {
+        let cart = await cartModel.findOne();
         if (!cart) {
             return res.status(404).json({ msg: 'Cart not found' });
         }
+
+        const productIndex = cart.products.findIndex(p => p.product.toString() === productId);
+        if (productIndex === -1) {
+            return res.status(404).json({ msg: 'Product not found in cart' });
+        }
+
+        if (cart.products[productIndex].quantity > 1) {
+            cart.products[productIndex].quantity -= 1;
+        } else {
+            cart.products.splice(productIndex, 1);
+        }
+
+        await cart.save();
+        cart = await cartModel.findOne().populate('products.product');
         res.status(200).json(cart);
     } catch (err) {
         res.status(500).json({ msg: err.message });
     }
 });
 
-router.delete('/:cid/product/:pid', async (req, res) => {
-    const { cid, pid } = req.params;
+// Ruta para vaciar el carrito
+router.post('/clear', async (req, res) => {
     try {
-        const cart = await cartModel.findById(cid);
+        let cart = await cartModel.findOne();
         if (!cart) {
             return res.status(404).json({ msg: 'Cart not found' });
         }
 
-        cart.products = cart.products.filter(p => p.product.toString() !== pid);
+        cart.products = [];
         await cart.save();
         res.status(200).json(cart);
     } catch (err) {
