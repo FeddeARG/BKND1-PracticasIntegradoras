@@ -6,19 +6,19 @@ import path from 'path';
 import { Server } from 'socket.io';
 import http from 'http';
 import viewsRouter from './routes/views.router.js';
+import userRouter from './routes/user.router.js';
 import __dirname from './utils/utils.js';
 import mongoose from 'mongoose';
-import userRouter from './routes/user.router.js'
 
 const app = express();
 const PORT = 8080;
 
 mongoose.connect("mongodb+srv://federicoanaranjo:KK68V0QwuBOSRNZd@clusterch.qyaerdl.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCH")
   .then(() => {
-    console.log('DDBB connect');
+    console.log("DDBB connect");
   })
   .catch(error => {
-    console.error('Connection error', error);
+    console.error("Connection error", error);
   });
 
 // Middlewares para parseo
@@ -40,7 +40,11 @@ const httpServer = http.createServer(app);
 const socketServer = new Server(httpServer);
 
 socketServer.on('connection', socket => {
-  console.log('New client logged in');
+  console.log("Nuevo cliente conectado");
+
+  socket.on('info', data => {
+    console.log(`la data nueva es ${data}`);
+  });
 
   socket.on('productData', data => {
     console.log('Product data received:', data);
@@ -56,8 +60,8 @@ socketServer.on('connection', socket => {
 // Routers
 app.use("/api/carts", cartsRouter);
 app.use("/api/products", configureProductsRouter(socketServer));
+app.use("/api/users", userRouter);  // Usar el router de usuarios
 app.use("/", viewsRouter);
-app.use("/api/users", userRouter);
 
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

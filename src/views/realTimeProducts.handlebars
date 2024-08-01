@@ -4,34 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-Time Products</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
 </head>
-<body>
-    <h1>Real-Time Product List</h1>
-    <form id="productForm">
-        <label for="id">ID:</label>
-        <input type="number" id="id" name="id" required><br><br>
-
-        <label for="title">Title:</label>
-        <input type="text" id="title" name="title" required><br><br>
-
-        <label for="description">Description:</label>
-        <input type="text" id="description" name="description" required><br><br>
-
-        <label for="code">Code:</label>
-        <input type="text" id="code" name="code" required><br><br>
-
-        <label for="price">Price:</label>
-        <input type="number" id="price" name="price" required><br><br>
-
-        <label for="stock">Stock:</label>
-        <input type="number" id="stock" name="stock" required><br><br>
-
-        <button type="submit">Submit</button>
+<body class="container">
+    <h1 class="mt-5">Real-Time Product List</h1>
+    <form id="productForm" class="mt-3">
+        <div class="form-group">
+            <label for="title">Title:</label>
+            <input type="text" class="form-control" id="title" name="title" required>
+        </div>
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <input type="text" class="form-control" id="description" name="description" required>
+        </div>
+        <div class="form-group">
+            <label for="code">Code:</label>
+            <input type="text" class="form-control" id="code" name="code" required>
+        </div>
+        <div class="form-group">
+            <label for="price">Price:</label>
+            <input type="number" class="form-control" id="price" name="price" required>
+        </div>
+        <div class="form-group">
+            <label for="stock">Stock:</label>
+            <input type="number" class="form-control" id="stock" name="stock" required>
+        </div>
+        <div class="form-group">
+            <label for="category">Category:</label>
+            <input type="text" class="form-control" id="category" name="category" required>
+        </div>
+        <div class="form-group">
+            <label for="thumbnails">Thumbnails:</label>
+            <input type="text" class="form-control" id="thumbnails" name="thumbnails">
+        </div>
+        <button type="submit" class="btn btn-primary">Submit</button>
     </form>
 
-    <div id="productsList">
+    <div id="productsList" class="mt-5">
         <h2>Products List</h2>
-        <ul id="products"></ul>
+        <ul id="products" class="list-group"></ul>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
