@@ -48,11 +48,7 @@ const io = new Server(httpServer);
 app.set('io', io);
 
 io.on('connection', socket => {
-  console.log("Nuevo cliente conectado");
-
-  socket.on('info', data => {
-    console.log(`la data nueva es ${data}`);
-  });
+  console.log("New Client connected");
 
   socket.on('productData', data => {
     console.log('Product data received:', data);

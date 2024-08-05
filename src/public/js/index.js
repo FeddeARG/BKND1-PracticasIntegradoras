@@ -31,14 +31,14 @@ function addProductToList(product) {
         <div class="card mb-4 shadow-sm">
             <div class="card-body">
                 <h5 class="card-title">${product.title}</h5>
-                <p class="card-text">${product.description}</p>
                 <p class="card-text"><strong>Code:</strong> ${product.code}</p>
+                <p class="card-text"><strong>Description:</strong>${product.description}</p>
                 <p class="card-text"><strong>Price:</strong> $${product.price}</p>
                 <p class="card-text"><strong>Stock:</strong> <span id="stock-${product._id}">${product.stock}</span></p>
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <button class="btn btn-sm btn-primary" onclick="viewDetails('${product._id}')">Ver Detalles</button>
-                        <button class="btn btn-sm btn-danger" onclick="removeProduct('${product._id}')">Eliminar</button>
+                        <button class="btn btn-sm btn-primary" onclick="viewDetails('${product._id}')">See more</button>
+                        <button class="btn btn-sm btn-danger" onclick="confirmRemoveProduct('${product._id}')">Erase product</button>
                         <button class="btn btn-sm btn-success" onclick="promptAddToCart('${product._id}')">Add to Cart</button>
                     </div>
                 </div>
@@ -115,6 +115,19 @@ function promptRemoveFromCart(productId) {
         confirmButtonText: 'Remove from Cart',
         preConfirm: (quantity) => {
             return removeFromCart(productId, parseInt(quantity, 10));
+        }
+    });
+}
+
+function confirmRemoveProduct(productId) {
+    Swal.fire({
+        title: 'You are going to erase the selected product from the DDBB, is that correct?',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, delete it',
+        cancelButtonText: 'No, keep it'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            removeProduct(productId);
         }
     });
 }
