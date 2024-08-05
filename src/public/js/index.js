@@ -39,7 +39,7 @@ function addProductToList(product) {
                     <div>
                         <button class="btn btn-sm btn-primary" onclick="viewDetails('${product._id}')">Ver Detalles</button>
                         <button class="btn btn-sm btn-danger" onclick="removeProduct('${product._id}')">Eliminar</button>
-                        <button class="btn btn-sm btn-success" onclick="addToCart('${product._id}')">Add to Cart</button>
+                        <button class="btn btn-sm btn-success" onclick="promptAddToCart('${product._id}')">Add to Cart</button>
                     </div>
                 </div>
             </div>
@@ -74,7 +74,7 @@ function updateCartList(cart) {
                         <strong>Quantity:</strong> <span id="cart-quantity-${item.product._id}">${item.quantity}</span>
                     </div>
                     <div>
-                        <button class="btn btn-sm btn-danger" onclick="removeFromCart('${item.product._id}')">Remove</button>
+                        <button class="btn btn-sm btn-danger" onclick="promptRemoveFromCart('${item.product._id}')">Remove</button>
                     </div>
                 </div>`;
             cartList.appendChild(cartItem);
@@ -89,9 +89,43 @@ function updateCartQuantity(productId, newQuantity) {
     }
 }
 
-function addToCart(productId) {
+function promptAddToCart(productId) {
+    Swal.fire({
+        title: 'Enter the quantity to add',
+        input: 'number',
+        inputAttributes: {
+            min: 1
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Add to Cart',
+        preConfirm: (quantity) => {
+            return addToCart(productId, parseInt(quantity, 10));
+        }
+    });
+}
+
+function promptRemoveFromCart(productId) {
+    Swal.fire({
+        title: 'Enter the quantity to remove',
+        input: 'number',
+        inputAttributes: {
+            min: 1
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Remove from Cart',
+        preConfirm: (quantity) => {
+            return removeFromCart(productId, parseInt(quantity, 10));
+        }
+    });
+}
+
+function addToCart(productId, quantity) {
     fetch(`/api/carts/add/${productId}`, {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ quantity: quantity })
     })
     .then(response => response.json())
     .then(cart => {
@@ -120,9 +154,13 @@ function removeProduct(id) {
     .catch(err => console.error('Error removing product:', err));
 }
 
-function removeFromCart(productId) {
+function removeFromCart(productId, quantity) {
     fetch(`/api/carts/remove/${productId}`, {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ quantity: quantity })
     })
     .then(response => response.json())
     .then(cart => {

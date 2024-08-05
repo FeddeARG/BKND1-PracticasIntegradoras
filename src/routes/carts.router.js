@@ -6,6 +6,7 @@ const router = Router();
 
 router.post('/add/:pid', async (req, res) => {
     const productId = req.params.pid;
+    const { quantity } = req.body;
 
     try {
         const product = await productModel.findById(productId);
@@ -13,8 +14,8 @@ router.post('/add/:pid', async (req, res) => {
             return res.status(404).json({ msg: 'Product not found' });
         }
 
-        if (product.stock <= 0) {
-            return res.status(400).json({ msg: 'Product out of stock' });
+        if (product.stock < quantity) {
+            return res.status(400).json({ msg: 'Not enough stock' });
         }
 
         let cart = await cartModel.findOne();
@@ -24,12 +25,12 @@ router.post('/add/:pid', async (req, res) => {
 
         const productInCart = cart.products.find(p => p.product.toString() === productId);
         if (productInCart) {
-            productInCart.quantity += 1;
+            productInCart.quantity += quantity;
         } else {
-            cart.products.push({ product: productId, quantity: 1 });
+            cart.products.push({ product: productId, quantity: quantity });
         }
 
-        product.stock -= 1;
+        product.stock -= quantity;
         await product.save();
         await cart.save();
 
@@ -57,6 +58,7 @@ router.get('/', async (req, res) => {
 
 router.post('/remove/:pid', async (req, res) => {
     const productId = req.params.pid;
+    const { quantity } = req.body;
 
     try {
         let cart = await cartModel.findOne();
@@ -70,14 +72,17 @@ router.post('/remove/:pid', async (req, res) => {
         }
 
         const productInCart = cart.products[productIndex];
-        productInCart.quantity -= 1;
+        if (productInCart.quantity < quantity) {
+            return res.status(400).json({ msg: 'Not enough quantity in cart' });
+        }
 
         const product = await productModel.findById(productId);
         if (product) {
-            product.stock += 1;
+            product.stock += quantity;
             await product.save();
         }
 
+        productInCart.quantity -= quantity;
         if (productInCart.quantity <= 0) {
             cart.products.splice(productIndex, 1);
         }
