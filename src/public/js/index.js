@@ -162,6 +162,17 @@ socket.on('cartUpdated', (cart) => {
     updateCartList(cart);
 });
 
+socket.on('cartCleared', () => {
+    clearCartUI();
+});
+
+function clearCartUI() {
+    const cartList = document.getElementById('cart-items');
+    cartList.innerHTML = ''; // Limpiar lista de carritos
+    const emptyCartMessage = document.getElementById('empty-cart');
+    emptyCartMessage.style.display = 'block';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     fetch('/api/products')
         .then(response => response.json())

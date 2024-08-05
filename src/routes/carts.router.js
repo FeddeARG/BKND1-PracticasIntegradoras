@@ -94,4 +94,32 @@ router.post('/remove/:pid', async (req, res) => {
     }
 });
 
+router.post('/clear', async (req, res) => {
+    try {
+        let cart = await cartModel.findOne();
+        if (!cart) {
+            return res.status(404).json({ msg: 'Cart not found' });
+        }
+
+        for (let item of cart.products) {
+            const product = await productModel.findById(item.product);
+            if (product) {
+                product.stock += item.quantity;
+                await product.save();
+            }
+        }
+
+        cart.products = [];
+        await cart.save();
+        
+        // Emitir evento para actualizar todos los productos
+        req.app.get('io').emit('cartCleared');
+        req.app.get('io').emit('cartUpdated', cart);
+
+        res.status(200).json(cart);
+    } catch (err) {
+        res.status(500).json({ msg: err.message });
+    }
+});
+
 export default router;
