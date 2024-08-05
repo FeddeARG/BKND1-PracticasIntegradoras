@@ -15,8 +15,7 @@ document.getElementById('productForm').addEventListener('submit', function (even
     .then(response => response.json())
     .then(product => {
         console.log('Product added:', product);
-        // Aquí removemos la llamada redundante
-        // addProductToList(product);
+        addProductToList(product);
     })
     .catch(err => console.error('Error adding product:', err));
 
@@ -35,7 +34,7 @@ function addProductToList(product) {
                 <p class="card-text">${product.description}</p>
                 <p class="card-text"><strong>Code:</strong> ${product.code}</p>
                 <p class="card-text"><strong>Price:</strong> $${product.price}</p>
-                <p class="card-text"><strong>Stock:</strong> ${product.stock}</p>
+                <p class="card-text"><strong>Stock:</strong> <span id="stock-${product._id}">${product.stock}</span></p>
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <button class="btn btn-sm btn-primary" onclick="viewDetails('${product._id}')">Ver Detalles</button>
@@ -48,16 +47,11 @@ function addProductToList(product) {
     productList.appendChild(productItem);
 }
 
-function addToCart(productId) {
-    fetch(`/api/carts/add/${productId}`, {
-        method: 'POST'
-    })
-    .then(response => response.json())
-    .then(cart => {
-        console.log('Product added to cart:', cart);
-        updateCartList(cart);
-    })
-    .catch(err => console.error('Error adding product to cart:', err));
+function updateProductStock(productId, newStock) {
+    const stockElement = document.getElementById(`stock-${productId}`);
+    if (stockElement) {
+        stockElement.textContent = newStock;
+    }
 }
 
 function updateCartList(cart) {
@@ -77,7 +71,7 @@ function updateCartList(cart) {
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <strong>Title:</strong> ${item.product.title} <br>
-                        <strong>Quantity:</strong> ${item.quantity}
+                        <strong>Quantity:</strong> <span id="cart-quantity-${item.product._id}">${item.quantity}</span>
                     </div>
                     <div>
                         <button class="btn btn-sm btn-danger" onclick="removeFromCart('${item.product._id}')">Remove</button>
@@ -86,6 +80,24 @@ function updateCartList(cart) {
             cartList.appendChild(cartItem);
         });
     }
+}
+
+function updateCartQuantity(productId, newQuantity) {
+    const quantityElement = document.getElementById(`cart-quantity-${productId}`);
+    if (quantityElement) {
+        quantityElement.textContent = newQuantity;
+    }
+}
+
+function addToCart(productId) {
+    fetch(`/api/carts/add/${productId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(cart => {
+        console.log('Product added to cart:', cart);
+    })
+    .catch(err => console.error('Error adding product to cart:', err));
 }
 
 function viewDetails(productId) {
@@ -103,7 +115,6 @@ function removeProduct(id) {
         if (productItem) {
             productItem.remove();
         }
-        // Emitir evento para actualizar carritos
         socket.emit('cartUpdated');
     })
     .catch(err => console.error('Error removing product:', err));
@@ -116,7 +127,6 @@ function removeFromCart(productId) {
     .then(response => response.json())
     .then(cart => {
         console.log('Product removed from cart:', cart);
-        updateCartList(cart);
     })
     .catch(err => console.error('Error removing product from cart:', err));
 }
@@ -144,20 +154,23 @@ socket.on('productData', (data) => {
     addProductToList(data);
 });
 
-socket.on('cartUpdated', () => {
-    fetch('/api/carts')
-        .then(response => response.json())
-        .then(cart => {
-            updateCartList(cart);
-        })
-        .catch(err => console.error('Error fetching cart:', err));
+socket.on('productUpdated', (product) => {
+    updateProductStock(product._id, product.stock);
+});
+
+socket.on('cartUpdated', (cart) => {
+    updateCartList(cart);
 });
 
 document.addEventListener('DOMContentLoaded', () => {
     fetch('/api/products')
         .then(response => response.json())
-        .then(products => {
-            products.forEach(product => addProductToList(product));
+        .then(response => {
+            if (response.status === 'success') {
+                response.payload.forEach(product => addProductToList(product));
+            } else {
+                console.error('Error fetching products:', response.msg);
+            }
         })
         .catch(err => console.error('Error fetching products:', err));
 

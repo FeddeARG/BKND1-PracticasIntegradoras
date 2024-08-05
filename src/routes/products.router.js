@@ -5,11 +5,49 @@ import cartModel from '../models/cart.model.js';
 const router = Router();
 
 router.get('/', async (req, res) => {
+    const { limit = 10, page = 1, sort, query } = req.query;
+    
+    const limitNumber = parseInt(limit);
+    const pageNumber = parseInt(page);
+    const sortOption = sort === 'asc' ? { price: 1 } : sort === 'desc' ? { price: -1 } : {};
+    const filter = {};
+
+    if (query) {
+        if (query === 'available') {
+            filter.status = true;
+        } else {
+            filter.category = query;
+        }
+    }
+
     try {
-        const products = await productModel.find(); // Obtener todos los productos de la colección
-        res.status(200).json(products); // Enviar productos al cliente
+        const products = await productModel.find(filter)
+            .limit(limitNumber)
+            .skip((pageNumber - 1) * limitNumber)
+            .sort(sortOption);
+
+        const totalProducts = await productModel.countDocuments(filter);
+        const totalPages = Math.ceil(totalProducts / limitNumber);
+        const hasPrevPage = pageNumber > 1;
+        const hasNextPage = pageNumber < totalPages;
+        const prevPage = hasPrevPage ? pageNumber - 1 : null;
+        const nextPage = hasNextPage ? pageNumber + 1 : null;
+        const baseUrl = req.protocol + '://' + req.get('host') + req.path;
+        
+        res.status(200).json({
+            status: 'success',
+            payload: products,
+            totalPages,
+            prevPage,
+            nextPage,
+            page: pageNumber,
+            hasPrevPage,
+            hasNextPage,
+            prevLink: hasPrevPage ? `${baseUrl}?page=${prevPage}&limit=${limitNumber}&sort=${sort}&query=${query}` : null,
+            nextLink: hasNextPage ? `${baseUrl}?page=${nextPage}&limit=${limitNumber}&sort=${sort}&query=${query}` : null
+        });
     } catch (err) {
-        res.status(500).json({ msg: err.message });
+        res.status(500).json({ status: 'error', msg: err.message });
     }
 });
 

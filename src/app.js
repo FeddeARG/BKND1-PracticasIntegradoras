@@ -13,13 +13,20 @@ import mongoose from 'mongoose';
 const app = express();
 const PORT = 8080;
 
-mongoose.connect("mongodb+srv://federicoanaranjo:KK68V0QwuBOSRNZd@clusterch.qyaerdl.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCH")
-  .then(() => {
-    console.log("DDBB connect");
-  })
-  .catch(error => {
-    console.error("Connection error", error);
-  });
+
+// Configuración MongoDB
+const environment = async () => {
+  await mongoose.connect(
+      "mongodb+srv://federicoanaranjo:KK68V0QwuBOSRNZd@clusterch.qyaerdl.mongodb.net/?retryWrites=true&w=majority&appName=ClusterCH"
+    )
+    .then(() => {
+      console.log("Connection successful");
+    })
+    .catch((error) => {
+      console.error("Connection error", error);
+    });
+};
+environment()
 
 // Middlewares para parseo
 app.use(json());
@@ -37,9 +44,10 @@ app.set('view engine', 'handlebars');
 const httpServer = http.createServer(app);
 
 // Configurar Socket.IO
-const socketServer = new Server(httpServer);
+const io = new Server(httpServer);
+app.set('io', io);
 
-socketServer.on('connection', socket => {
+io.on('connection', socket => {
   console.log("Nuevo cliente conectado");
 
   socket.on('info', data => {
@@ -48,18 +56,18 @@ socketServer.on('connection', socket => {
 
   socket.on('productData', data => {
     console.log('Product data received:', data);
-    socketServer.emit('productData', data); // Emitir el evento a todos los clientes
+    io.emit('productData', data); // Emitir el evento a todos los clientes
   });
 
   socket.on('removeProduct', data => {
     console.log('Remove product:', data);
-    socketServer.emit('productRemoved', data); // Notificar a todos los clientes que el producto ha sido eliminado
+    io.emit('productRemoved', data); // Notificar a todos los clientes que el producto ha sido eliminado
   });
 });
 
 // Routers
 app.use("/api/carts", cartsRouter);
-app.use("/api/products", configureProductsRouter(socketServer));
+app.use("/api/products", configureProductsRouter(io));
 app.use("/api/users", userRouter);  // Usar el router de usuarios
 app.use("/", viewsRouter);
 

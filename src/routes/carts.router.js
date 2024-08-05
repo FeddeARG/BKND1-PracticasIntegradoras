@@ -4,7 +4,6 @@ import productModel from '../models/product.model.js';
 
 const router = Router();
 
-// Ruta para agregar un producto al carrito
 router.post('/add/:pid', async (req, res) => {
     const productId = req.params.pid;
 
@@ -12,6 +11,10 @@ router.post('/add/:pid', async (req, res) => {
         const product = await productModel.findById(productId);
         if (!product) {
             return res.status(404).json({ msg: 'Product not found' });
+        }
+
+        if (product.stock <= 0) {
+            return res.status(400).json({ msg: 'Product out of stock' });
         }
 
         let cart = await cartModel.findOne();
@@ -26,15 +29,20 @@ router.post('/add/:pid', async (req, res) => {
             cart.products.push({ product: productId, quantity: 1 });
         }
 
+        product.stock -= 1;
+        await product.save();
         await cart.save();
-        cart = await cartModel.findOne().populate('products.product');
+
+        // Emitir evento para actualizar el stock y el carrito en todos los clientes
+        req.app.get('io').emit('productUpdated', product);
+        req.app.get('io').emit('cartUpdated', await cartModel.findOne().populate('products.product').exec());
+
         res.status(200).json(cart);
     } catch (err) {
         res.status(500).json({ msg: err.message });
     }
 });
 
-// Ruta para obtener el carrito
 router.get('/', async (req, res) => {
     try {
         const cart = await cartModel.findOne().populate('products.product');
@@ -47,7 +55,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Ruta para eliminar un producto del carrito
 router.post('/remove/:pid', async (req, res) => {
     const productId = req.params.pid;
 
@@ -62,30 +69,25 @@ router.post('/remove/:pid', async (req, res) => {
             return res.status(404).json({ msg: 'Product not found in cart' });
         }
 
-        if (cart.products[productIndex].quantity > 1) {
-            cart.products[productIndex].quantity -= 1;
-        } else {
+        const productInCart = cart.products[productIndex];
+        productInCart.quantity -= 1;
+
+        const product = await productModel.findById(productId);
+        if (product) {
+            product.stock += 1;
+            await product.save();
+        }
+
+        if (productInCart.quantity <= 0) {
             cart.products.splice(productIndex, 1);
         }
 
         await cart.save();
-        cart = await cartModel.findOne().populate('products.product');
-        res.status(200).json(cart);
-    } catch (err) {
-        res.status(500).json({ msg: err.message });
-    }
-});
 
-// Ruta para vaciar el carrito
-router.post('/clear', async (req, res) => {
-    try {
-        let cart = await cartModel.findOne();
-        if (!cart) {
-            return res.status(404).json({ msg: 'Cart not found' });
-        }
+        // Emitir evento para actualizar el stock y el carrito en todos los clientes
+        req.app.get('io').emit('productUpdated', product);
+        req.app.get('io').emit('cartUpdated', await cartModel.findOne().populate('products.product').exec());
 
-        cart.products = [];
-        await cart.save();
         res.status(200).json(cart);
     } catch (err) {
         res.status(500).json({ msg: err.message });
