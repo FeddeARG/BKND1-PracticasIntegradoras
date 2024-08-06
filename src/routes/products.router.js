@@ -6,45 +6,39 @@ const router = Router();
 
 router.get('/', async (req, res) => {
     const { limit = 10, page = 1, sort, query } = req.query;
-    
-    const limitNumber = parseInt(limit);
-    const pageNumber = parseInt(page);
-    const sortOption = sort === 'asc' ? { price: 1 } : sort === 'desc' ? { price: -1 } : {};
-    const filter = {};
 
+    let filter = {};
     if (query) {
-        if (query === 'available') {
-            filter.status = true;
-        } else {
-            filter.category = query;
-        }
+        filter = {
+            $or: [
+                { category: { $regex: query, $options: 'i' } },
+                { status: { $regex: query, $options: 'i' } },
+                { title: { $regex: query, $options: 'i' } },
+                { description: { $regex: query, $options: 'i' } }
+            ]
+        };
     }
 
-    try {
-        const products = await productModel.find(filter)
-            .limit(limitNumber)
-            .skip((pageNumber - 1) * limitNumber)
-            .sort(sortOption);
+    const options = {
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
+        sort: sort ? { price: sort === 'asc' ? 1 : -1 } : {}
+    };
 
-        const totalProducts = await productModel.countDocuments(filter);
-        const totalPages = Math.ceil(totalProducts / limitNumber);
-        const hasPrevPage = pageNumber > 1;
-        const hasNextPage = pageNumber < totalPages;
-        const prevPage = hasPrevPage ? pageNumber - 1 : null;
-        const nextPage = hasNextPage ? pageNumber + 1 : null;
-        const baseUrl = req.protocol + '://' + req.get('host') + req.path;
-        
-        res.status(200).json({
+    try {
+        const result = await productModel.paginate(filter, options);
+
+        res.status(200).json({//atento a si no se visualizan 
             status: 'success',
-            payload: products,
-            totalPages,
-            prevPage,
-            nextPage,
-            page: pageNumber,
-            hasPrevPage,
-            hasNextPage,
-            prevLink: hasPrevPage ? `${baseUrl}?page=${prevPage}&limit=${limitNumber}&sort=${sort}&query=${query}` : null,
-            nextLink: hasNextPage ? `${baseUrl}?page=${nextPage}&limit=${limitNumber}&sort=${sort}&query=${query}` : null
+            payload: result.docs,
+            totalPages: result.totalPages,
+            prevPage: result.prevPage,
+            nextPage: result.nextPage,
+            page: result.page,
+            hasPrevPage: result.hasPrevPage,
+            hasNextPage: result.hasNextPage,
+            prevLink: result.hasPrevPage ? `/api/products?page=${result.prevPage}&limit=${limit}&sort=${sort}&query=${query}` : null,
+            nextLink: result.hasNextPage ? `/api/products?page=${result.nextPage}&limit=${limit}&sort=${sort}&query=${query}` : null
         });
     } catch (err) {
         res.status(500).json({ status: 'error', msg: err.message });

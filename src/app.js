@@ -13,7 +13,6 @@ import mongoose from 'mongoose';
 const app = express();
 const PORT = 8080;
 
-
 // Configuración MongoDB
 const environment = async () => {
   await mongoose.connect(
@@ -44,26 +43,29 @@ app.set('view engine', 'handlebars');
 const httpServer = http.createServer(app);
 
 // Configurar Socket.IO
-const io = new Server(httpServer);
-app.set('io', io);
+const socketServer = new Server(httpServer);
 
-io.on('connection', socket => {
-  console.log("New Client connected");
+socketServer.on('connection', socket => {
+  console.log("Nuevo cliente conectado");
+
+  socket.on('info', data => {
+    console.log(`la data nueva es ${data}`);
+  });
 
   socket.on('productData', data => {
     console.log('Product data received:', data);
-    io.emit('productData', data); // Emitir el evento a todos los clientes
+    socketServer.emit('productData', data); // Emitir el evento a todos los clientes
   });
 
   socket.on('removeProduct', data => {
     console.log('Remove product:', data);
-    io.emit('productRemoved', data); // Notificar a todos los clientes que el producto ha sido eliminado
+    socketServer.emit('productRemoved', data); // Notificar a todos los clientes que el producto ha sido eliminado
   });
 });
 
 // Routers
 app.use("/api/carts", cartsRouter);
-app.use("/api/products", configureProductsRouter(io));
+app.use("/api/products", configureProductsRouter(socketServer));
 app.use("/api/users", userRouter);  // Usar el router de usuarios
 app.use("/", viewsRouter);
 

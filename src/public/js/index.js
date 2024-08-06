@@ -24,6 +24,10 @@ document.getElementById('productForm').addEventListener('submit', function (even
 
 function addProductToList(product) {
     const productList = document.getElementById('products');
+    if (!productList) {
+        console.error('Product list element not found');
+        return;
+    }
     const productItem = document.createElement('div');
     productItem.className = 'col-md-4';
     productItem.id = `product-${product._id}`;
@@ -31,14 +35,14 @@ function addProductToList(product) {
         <div class="card mb-4 shadow-sm">
             <div class="card-body">
                 <h5 class="card-title">${product.title}</h5>
+                <p class="card-text">${product.description}</p>
                 <p class="card-text"><strong>Code:</strong> ${product.code}</p>
-                <p class="card-text"><strong>Description:</strong>${product.description}</p>
                 <p class="card-text"><strong>Price:</strong> $${product.price}</p>
                 <p class="card-text"><strong>Stock:</strong> <span id="stock-${product._id}">${product.stock}</span></p>
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <button class="btn btn-sm btn-primary" onclick="viewDetails('${product._id}')">See more</button>
-                        <button class="btn btn-sm btn-danger" onclick="confirmRemoveProduct('${product._id}')">Erase product</button>
+                        <button class="btn btn-sm btn-primary" onclick="viewDetails('${product._id}')">See more...</button>
+                        <button class="btn btn-sm btn-danger" onclick="confirmRemoveProduct('${product._id}')">Erase</button>
                         <button class="btn btn-sm btn-success" onclick="promptAddToCart('${product._id}')">Add to Cart</button>
                     </div>
                 </div>
@@ -57,7 +61,11 @@ function updateProductStock(productId, newStock) {
 function updateCartList(cart) {
     const cartList = document.getElementById('cart-items');
     const emptyCartMessage = document.getElementById('empty-cart');
-    cartList.innerHTML = ''; // Limpiar lista de carritos
+    if (!cartList) {
+        console.error('Cart list element not found');
+        return;
+    }
+    cartList.innerHTML = ''; // Limpiar lista de carritos OJO
 
     if (!cart || !cart.products || cart.products.length === 0) {
         emptyCartMessage.style.display = 'block';
@@ -143,6 +151,7 @@ function addToCart(productId, quantity) {
     .then(response => response.json())
     .then(cart => {
         console.log('Product added to cart:', cart);
+        socket.emit('cartUpdated');
     })
     .catch(err => console.error('Error adding product to cart:', err));
 }
@@ -178,6 +187,7 @@ function removeFromCart(productId, quantity) {
     .then(response => response.json())
     .then(cart => {
         console.log('Product removed from cart:', cart);
+        socket.emit('cartUpdated');
     })
     .catch(err => console.error('Error removing product from cart:', err));
 }
@@ -192,6 +202,41 @@ function clearCart() {
         updateCartList(cart);
     })
     .catch(err => console.error('Error clearing cart:', err));
+}
+
+function fetchProducts(page = 1, limit = 10, sort = '', query = '') {
+    fetch(`/api/products?page=${page}&limit=${limit}&sort=${sort}&query=${query}`)
+        .then(response => response.json())
+        .then(response => {
+            if (response.status === 'success') {
+                const productsList = document.getElementById('products');
+                if (!productsList) {
+                    console.error('Products list element not found');
+                    return;
+                }
+                productsList.innerHTML = '';
+                response.payload.forEach(product => addProductToList(product));
+
+                // Actualizar los enlaces de paginación
+                const paginationControls = document.getElementById('pagination-controls');
+                if (paginationControls) {
+                    paginationControls.innerHTML = `
+                        <nav>
+                            <ul class="pagination">
+                                ${response.hasPrevPage ? `<li class="page-item"><a class="page-link" href="#" onclick="fetchProducts(${response.prevPage}, ${limit}, '${sort}', '${query}')">Previous</a></li>` : ''}
+                                <li class="page-item active"><a class="page-link" href="#">${response.page}</a></li>
+                                ${response.hasNextPage ? `<li class="page-item"><a class="page-link" href="#" onclick="fetchProducts(${response.nextPage}, ${limit}, '${sort}', '${query}')">Next</a></li>` : ''}
+                            </ul>
+                        </nav>
+                    `;
+                } else {
+                    console.error('Pagination controls element not found');
+                }
+            } else {
+                console.error('Error fetching products:', response.msg);
+            }
+        })
+        .catch(err => console.error('Error fetching products:', err));
 }
 
 socket.on('productRemoved', (data) => {
@@ -219,22 +264,17 @@ socket.on('cartCleared', () => {
 
 function clearCartUI() {
     const cartList = document.getElementById('cart-items');
+    if (!cartList) {
+        console.error('Cart list element not found');
+        return;
+    }
     cartList.innerHTML = ''; // Limpiar lista de carritos
     const emptyCartMessage = document.getElementById('empty-cart');
     emptyCartMessage.style.display = 'block';
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    fetch('/api/products')
-        .then(response => response.json())
-        .then(response => {
-            if (response.status === 'success') {
-                response.payload.forEach(product => addProductToList(product));
-            } else {
-                console.error('Error fetching products:', response.msg);
-            }
-        })
-        .catch(err => console.error('Error fetching products:', err));
+    fetchProducts();
 
     fetch('/api/carts')
         .then(response => response.json())
