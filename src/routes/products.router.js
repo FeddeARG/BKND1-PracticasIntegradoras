@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
     try {
         const result = await productModel.paginate(filter, options);
 
-        res.status(200).json({//atento a si no se visualizan 
+        res.status(200).json({
             status: 'success',
             payload: result.docs,
             totalPages: result.totalPages,

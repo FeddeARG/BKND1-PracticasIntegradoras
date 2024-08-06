@@ -41,8 +41,8 @@ function addProductToList(product) {
                 <p class="card-text"><strong>Stock:</strong> <span id="stock-${product._id}">${product.stock}</span></p>
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <button class="btn btn-sm btn-primary" onclick="viewDetails('${product._id}')">See more...</button>
-                        <button class="btn btn-sm btn-danger" onclick="confirmRemoveProduct('${product._id}')">Erase</button>
+                        <button class="btn btn-sm btn-primary" onclick="viewDetails('${product._id}')">Ver Detalles</button>
+                        <button class="btn btn-sm btn-danger" onclick="confirmRemoveProduct('${product._id}')">Eliminar</button>
                         <button class="btn btn-sm btn-success" onclick="promptAddToCart('${product._id}')">Add to Cart</button>
                     </div>
                 </div>
@@ -65,24 +65,25 @@ function updateCartList(cart) {
         console.error('Cart list element not found');
         return;
     }
-    cartList.innerHTML = ''; // Limpiar lista de carritos OJO
+    cartList.innerHTML = ''; // Limpiar lista de carritos
 
     if (!cart || !cart.products || cart.products.length === 0) {
         emptyCartMessage.style.display = 'block';
     } else {
         emptyCartMessage.style.display = 'none';
         cart.products.forEach(item => {
+            const product = item.product;
             const cartItem = document.createElement('li');
             cartItem.className = 'list-group-item';
-            cartItem.id = `cart-${item.product._id}`;
+            cartItem.id = `cart-${product._id}`;
             cartItem.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <strong>Title:</strong> ${item.product.title} <br>
-                        <strong>Quantity:</strong> <span id="cart-quantity-${item.product._id}">${item.quantity}</span>
+                        <strong>Title:</strong> ${product.title || 'undefined'} <br>
+                        <strong>Quantity:</strong> <span id="cart-quantity-${product._id}">${item.quantity}</span>
                     </div>
                     <div>
-                        <button class="btn btn-sm btn-danger" onclick="promptRemoveFromCart('${item.product._id}')">Remove</button>
+                        <button class="btn btn-sm btn-danger" onclick="promptRemoveFromCart('${product._id}')">Remove</button>
                     </div>
                 </div>`;
             cartList.appendChild(cartItem);
@@ -151,7 +152,7 @@ function addToCart(productId, quantity) {
     .then(response => response.json())
     .then(cart => {
         console.log('Product added to cart:', cart);
-        socket.emit('cartUpdated');
+        socket.emit('cartUpdated', cart);
     })
     .catch(err => console.error('Error adding product to cart:', err));
 }
@@ -177,6 +178,11 @@ function removeProduct(id) {
 }
 
 function removeFromCart(productId, quantity) {
+    if (!productId) {
+        console.error('Product ID is undefined');
+        return;
+    }
+
     fetch(`/api/carts/remove/${productId}`, {
         method: 'POST',
         headers: {
@@ -187,7 +193,7 @@ function removeFromCart(productId, quantity) {
     .then(response => response.json())
     .then(cart => {
         console.log('Product removed from cart:', cart);
-        socket.emit('cartUpdated');
+        socket.emit('cartUpdated', cart);
     })
     .catch(err => console.error('Error removing product from cart:', err));
 }
